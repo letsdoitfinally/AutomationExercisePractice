@@ -1,0 +1,4 @@
+*.log
+*.png
+pytest_practice.py
+pytest_selenium_driver_practice.py
