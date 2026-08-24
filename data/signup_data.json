@@ -1,0 +1,27 @@
+{
+    "signup": {
+        "name": "TestUser",
+        "email_address": "testuser@example.com",
+        "title": "Mrs",
+        "password": "Test@12345",
+        "date_of_birth": {
+            "day": "2",
+            "month": "April",
+            "year": "1990"
+        },
+        "address": {
+            "first_name": "TestUser",
+            "last_name": "Singh",
+            "company": "Test Company",
+            "address": "T10 567",
+            "address_2": "",
+            "country": "India",
+            "state": "Uttar Pradesh",
+            "city": "Greater Noida",
+            "zipcode": "201306",
+            "mobile_number": "9876767343"
+        },
+        "subscribe_newsletter": false,
+        "receive_special_offers": false
+    }
+}

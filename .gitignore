@@ -4,3 +4,4 @@ pytest_practice.py
 pytest_selenium_driver_practice.py
 *__pycache__*
 .idea/*
+*.html
