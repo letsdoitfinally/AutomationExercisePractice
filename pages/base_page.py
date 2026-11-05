@@ -67,20 +67,11 @@ class BasePageClass:
     @logging_decorator
     @retry_on_exception(times=3, exception_type=ElementClickInterceptedException)
     def click_element(self, element: WebElement):
-        try:
-            element.click()
-        except ElementClickInterceptedException:
-            # this is to handle the appearance of ad
-            dismiss_button_elem = self.driver.find_element(By.ID,"dismiss-button-element")
-            dismiss_button_elem.click()
-            if dismiss_button_elem.is_element_invisible:
-                element.click()
-            else:
-                raise ElementClickInterceptedException
-
+        self.wait_for_element_to_be_clickable(element)
+        element.click()
 
     @logging_decorator
-    @retry_on_exception
+    @retry_on_exception()
     def is_element_invisible(self, element: WebElement) -> WebElement | bool:
         """
 
@@ -92,21 +83,28 @@ class BasePageClass:
         """
         return self.wait.until(EC.invisibility_of_element(element))
 
-
-    def is_element_visible(self, locator:  tuple[str, str]) ->  bool:
-        """
+    @logging_decorator
+    def is_element_visible(
+            self,
+            locator: tuple[str, str],
+            timeout: int = 5,
+    ) -> bool:
+        """Check whether an element is visible on the page.
 
         Args:
-            locator:
+            locator: Selenium locator tuple used to find the element.
+            timeout: Maximum time in seconds to wait for visibility.
 
         Returns:
-
+            bool: True if the element becomes visible within the timeout,
+                otherwise False.
         """
-
-        element = self.locate_element(locator)
-        if self.wait.until(EC.visibility_of(element)):
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                EC.visibility_of_element_located(locator)
+            )
             return True
-        else:
+        except Exception:
             return False
 
     @logging_decorator
@@ -203,3 +201,6 @@ class BasePageClass:
             raise ValueError(
                 f"Invalid selection strategy '{by}'. Use 'text', 'value', or 'index'."
             )
+
+#     just for practice custom expected waits which is fluent wait
+

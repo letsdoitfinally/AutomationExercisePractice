@@ -1,3 +1,5 @@
+import os
+
 import pytest
 import sys
 import logging
@@ -7,12 +9,14 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOption
 from pathlib import Path
 from reportportal_client import RPLogger, RPLogHandler
-import json
-import uuid
+
+from pages.login_and_signup_page import LoginAndSignUpPageClass
+from utilities.helpers import load_json_data, generate_unique_id
+
 
 
 TEST_DATA_PATH = (
-    Path(__file__).parent / "data" / "signup_data.json"
+    Path(__file__).parent / "data"
 )
 
 logger = logging.getLogger(__name__)
@@ -22,6 +26,11 @@ def pytest_addoption(parser):
     parser.addoption(
         '--browser', action="store", default=None,
         help="Browser type: Chrome or Firefox"
+    )
+    parser.addini(
+        "browser",
+        help="Default browser to use for test execution.",
+        default="chrome",
     )
     parser.addoption(
         "--headless", action="store", default=False,
@@ -39,7 +48,6 @@ def get_driver(request):
     if browser == 'chrome':
         options = ChromeOptions()
         options.add_argument("--start-maximized")
-        options.add_argument("--disable-extensions")
         driver = webdriver.Chrome()
     elif browser == 'firefox':
         driver = webdriver.Firefox()
@@ -47,6 +55,7 @@ def get_driver(request):
         error_msg = f"Provided browser name '{browser}' is invalid. Expected 'chrome' or 'firefox'."
         logging.error(error_msg)
         pytest.exit(error_msg)
+    driver.maximize_window()
     yield driver
     if driver:
         driver.quit()
@@ -109,65 +118,92 @@ def signup_data() -> dict:
     """Create unique signup test data for each test execution.
 
     Returns:
-        Signup data containing a dynamically generated name and email.
+        Signup data containing a dynamically generated name, email and password.
     """
-    with TEST_DATA_PATH.open("r", encoding="utf-8") as file:
-        data = json.load(file)
+    data = load_json_data(f"{TEST_DATA_PATH}/signup_data.json")
 
-    unique_id = uuid.uuid4().hex[:8]
-
-    data["signup"]["name"] = f"TestUser{unique_id}"
+    data["signup"]["name"] = f"TestUser{generate_unique_id()}"
     data["signup"]["email_address"] = (
-        f"testuser_{unique_id}@example.com"
+        f"testuser_{generate_unique_id()}@example.com"
     )
+    data["signup"]["password"]=f"test{generate_unique_id()}password"
 
     return data["signup"]
 
+@pytest.fixture
+def invalid_login_data(request) -> dict:
+    file_path = TEST_DATA_PATH / "invalid_login_data.json"
+    data = load_json_data(file_path)
+    return data[request.param]
+
+
+@pytest.fixture
+def login_fixture(get_driver):
+    """Authenticate a user before a test executes.
+
+    Args:
+        get_driver: Selenium WebDriver fixture.
+
+    Raises:
+        RuntimeError: If login credentials are unavailable.
+    """
+    username = os.getenv("test_username")
+    password = os.getenv("test_password")
+
+    if not username or not password:
+        raise RuntimeError(
+            "Missing test_username or test_password environment variables."
+        )
+
+    login_page = LoginAndSignUpPageClass(get_driver)
+
+    logger.info("Navigating to application home page.")
+
+    login_page.navigate_to_url(
+        "https://www.automationexercise.com/"
+    )
+
+    logger.info(f"Logging in as user: {username}")
+
+    login_page.login(username, password)
+
+    logger.info("User successfully logged in.")
+
+
 # pytesthook for reporting and adding the screenshots on failure
+# Hook: ONLY attaches the outcome to the item, nothing else.
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """This hook captures screenshots of failed tests and routes them
-
-    simultaneously to local disk, the console, your text file, and ReportPortal.
-    """
-    # Execute the test step phase
     outcome = yield
-    result = outcome.get_result()  # Extract the test execution report object
+    result = outcome.get_result()
     setattr(item, "rep_" + result.when, result)
 
-    # We only care when an actual test validation step ("call") drops an assertion failure
-    if result.when == "call" and result.failed:
-        # Fetch your active browser instance dynamically from the current test context
-        driver = item.funcargs.get("get_driver", None)
 
-        if driver:
-            # 1. Save locally to a workspace directory
-            timestamp = time.strftime("%Y_%m_%d_%H_%M_%S")
-            screenshot_filename = f"{item.name}_{timestamp}.png"
-            screenshot_dir = Path(__file__).resolve().parent / "screenshots"
-            screenshot_dir.mkdir(parents=True, exist_ok=True)
+# New function-scoped fixture: runs its teardown after EVERY test,
+# even though get_driver (session-scoped) stays alive across tests.
+@pytest.fixture(autouse=True)
+def capture_screenshot_on_failure(request, get_driver):
+    yield
+    if request.node.rep_call.failed:
+        driver = get_driver
+        timestamp = time.strftime("%Y_%m_%d_%H_%M_%S")
+        screenshot_filename = f"{request.node.name}_{timestamp}.png"
+        screenshot_dir = Path(__file__).resolve().parent / "screenshots"
+        screenshot_dir.mkdir(parents=True, exist_ok=True)
 
-            screenshot_path = screenshot_dir / screenshot_filename
-            driver.save_screenshot(str(screenshot_path))
+        screenshot_path = screenshot_dir / screenshot_filename
+        driver.save_screenshot(str(screenshot_path))
+        screenshot_bytes = driver.get_screenshot_as_png()
 
-            # 2. Extract image bytes for data transport
-            screenshot_bytes = driver.get_screenshot_as_png()
-
-            # 3. Use the global logger to dispatch to ALL targets at once
-            logger.error(
-                f"TEST FAILURE RECORDED: Case '{item.name}' collapsed during execution. Sending screenshot asset.",
-                extra={
-                    "attachment": {
-                        "name": f"failure_{item.name}.png",
-                        "data": screenshot_bytes,
-                        "mime": "image/png",
-                    }
+        logger.error(
+            f"TEST FAILURE RECORDED: Case '{request.node.name}' collapsed during execution. Sending screenshot asset.",
+            extra={
+                "attachment": {
+                    "name": f"failure_{request.node.name}.png",
+                    "data": screenshot_bytes,
+                    "mime": "image/png",
                 }
-            )
-        else:
-            # If the driver wasn't found, log a clean warning across all pipelines
-            logger.warning(
-                f"Automation dropped an error on '{item.name}', but 'get_driver' fixture instance was unreachable."
-            )
+            }
+        )
 
 

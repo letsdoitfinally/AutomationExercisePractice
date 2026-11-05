@@ -1,0 +1,14 @@
+{
+  "invalid_email": {
+    "email": "dummyuser+1999@gmail.com",
+    "password": "practice@10"
+  },
+  "invalid_password": {
+    "email": "dummyuser+1@gmail.com",
+    "password": "practice@1023"
+  },
+  "invalid": {
+    "email": "dummyuser+1999@gmail.com",
+    "password": "practice@1023"
+  }
+}

@@ -1,11 +1,11 @@
 from selenium.webdriver.common.by import By
 
+from models.signup_models import AccountInformation
 from pages.base_page import BasePageClass
-from pages.header_components import HeaderComponentClass
+from pages.components.header_components import HeaderComponentClass
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 class LoginAndSignUpLocators:
     """Locators for login, signup, and account information forms."""
@@ -15,6 +15,7 @@ class LoginAndSignUpLocators:
     LOGIN_EMAIL_ADDRESS = (By.CSS_SELECTOR, "input[data-qa='login-email']")
     LOGIN_PASSWORD = (By.CSS_SELECTOR, "input[data-qa='login-password']")
     LOGIN_BUTTON = (By.CSS_SELECTOR, "button[data-qa='login-button']")
+    LOGIN_ERROR_LOCATOR = (By.CSS_SELECTOR, "form[action='/login'] p")
 
     # Initial signup form
     SIGNUP_FORM = (By.CLASS_NAME, "signup-form")
@@ -89,6 +90,7 @@ class LoginAndSignUpPageClass(BasePageClass):
         Args:
             password: Password used for authentication.
         """
+        logger.info("Entering password")
         self.enter_text(
             LoginAndSignUpLocators.LOGIN_PASSWORD,
             password,
@@ -96,6 +98,7 @@ class LoginAndSignUpPageClass(BasePageClass):
 
     def _click_login_button(self) -> None:
         """Click the login button."""
+        logger.info("Clicking login button")
         login_button = self.locate_element(
             LoginAndSignUpLocators.LOGIN_BUTTON
         )
@@ -114,6 +117,17 @@ class LoginAndSignUpPageClass(BasePageClass):
         self._enter_password(password)
         self._click_login_button()
 
+    def get_login_error_text(self) -> str:
+        """
+        This method will locate and return the error text which appears on incorrect login credentials
+        Returns: It returns the error text string if found
+
+        """
+        error_text_element = self.locate_element(LoginAndSignUpLocators.LOGIN_ERROR_LOCATOR)
+        error_text = error_text_element.text
+        logger.info(f"Incorrect login error text is '{error_text}'")
+        return error_text
+
     # ------------------------------------------------------------------
     # Initial signup
     # ------------------------------------------------------------------
@@ -124,6 +138,7 @@ class LoginAndSignUpPageClass(BasePageClass):
         Args:
             name: Name to be used for the new account.
         """
+        logger.info("Entering signup user name")
         self.enter_text(
             LoginAndSignUpLocators.SIGNUP_NAME,
             name,
@@ -135,6 +150,7 @@ class LoginAndSignUpPageClass(BasePageClass):
         Args:
             email_address: Email address to be used for the new account.
         """
+        logger.info("Entering email id for signup")
         self.enter_text(
             LoginAndSignUpLocators.SIGNUP_EMAIL,
             email_address,
@@ -391,71 +407,36 @@ class LoginAndSignUpPageClass(BasePageClass):
     # Complete account information
     # ------------------------------------------------------------------
 
-    def enter_account_information(
-        self,
-        title: str,
-        password: str,
-        day: str,
-        month: str,
-        year: str,
-        first_name: str,
-        last_name: str,
-        company: str,
-        address: str,
-        address_2: str,
-        country: str,
-        state: str,
-        city: str,
-        zipcode: str,
-        mobile_number: str,
-        subscribe_newsletter: bool = False,
-        receive_special_offers: bool = False,
-    ) -> None:
+    def enter_account_information(self, account_info: AccountInformation) -> None:
         """Enter the account and address information.
 
         Args:
-            title: Account holder's title. Supported values are ``Mr`` and
-                ``Mrs``.
-            password: Password for the new account.
-            day: Day of birth.
-            month: Month of birth.
-            year: Year of birth.
-            first_name: Account holder's first name.
-            last_name: Account holder's last name.
-            company: Company name.
-            address: Primary address.
-            address_2: Secondary address information.
-            country: Country of residence.
-            state: State or province.
-            city: City of residence.
-            zipcode: Postal or ZIP code.
-            mobile_number: Mobile phone number.
-            subscribe_newsletter: Whether to subscribe to the newsletter.
-            receive_special_offers: Whether to receive special offers.
+            account_info: Account, date of birth, and address details for
+                the new signup.
         """
-        self._select_title(title)
-        self._enter_account_password(password)
+        self._select_title(account_info.title)
+        self._enter_account_password(account_info.password)
 
         self._select_date_of_birth(
-            day=day,
-            month=month,
-            year=year,
+            day=account_info.date_of_birth.day,
+            month=account_info.date_of_birth.month,
+            year=account_info.date_of_birth.year,
         )
 
-        self._select_newsletter(subscribe_newsletter)
-        self._select_special_offers(receive_special_offers)
+        self._select_newsletter(account_info.subscribe_newsletter)
+        self._select_special_offers(account_info.receive_special_offers)
 
-        self._enter_first_name(first_name)
-        self._enter_last_name(last_name)
-        self._enter_company(company)
-        self._enter_address(address)
-        self._enter_address_2(address_2)
+        self._enter_first_name(account_info.address.first_name)
+        self._enter_last_name(account_info.address.last_name)
+        self._enter_company(account_info.address.company)
+        self._enter_address(account_info.address.address)
+        self._enter_address_2(account_info.address.address_2)
 
-        self._select_country(country)
-        self._enter_state(state)
-        self._enter_city(city)
-        self._enter_zipcode(zipcode)
-        self._enter_mobile_number(mobile_number)
+        self._select_country(account_info.address.country)
+        self._enter_state(account_info.address.state)
+        self._enter_city(account_info.address.city)
+        self._enter_zipcode(account_info.address.zipcode)
+        self._enter_mobile_number(account_info.address.mobile_number)
 
     def create_account(self) -> None:
         """Submit the completed account information form."""
@@ -473,3 +454,8 @@ class LoginAndSignUpPageClass(BasePageClass):
             return value_returned
         logger.info("Account creation was successful")
         return value_returned
+
+    def click_continue_button(self):
+        pass
+        # pass (continue-button)
+

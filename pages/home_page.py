@@ -3,8 +3,9 @@ import logging
 from selenium.webdriver.common.by import By
 
 from pages.base_page import BasePageClass
-from pages.header_components import HeaderComponentClass
-from pages.products_page import ProductTile
+from pages.components.header_components import HeaderComponentClass
+from pages.components.product_tile import ProductTile
+from pages.components.cart_modal import CartModalClass
 
 
 logger = logging.getLogger(__name__)
@@ -132,7 +133,7 @@ class HomePageClass(BasePageClass):
                 the homepage.
         """
         super().__init__(driver)
-
+        self.cart_modal = CartModalClass(driver)
         self.header_component = HeaderComponentClass(driver)
 
     # ==================================================================
@@ -396,7 +397,6 @@ class HomePageClass(BasePageClass):
             f"Adding featured product at index "
             f"{product_index} to cart."
         )
-
         self.click_element(
             product.add_to_cart_button_elem
         )

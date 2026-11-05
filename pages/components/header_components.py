@@ -25,9 +25,16 @@ class HeaderComponentLocator:
     )
     LOGOUT_NAV = (
         By.CSS_SELECTOR,
-        "a[href='logout']",
+        "a[href='/logout']",
     )
-
+    DELETE_ACCOUNT_NAV = (
+        By.CSS_SELECTOR,
+        "a[href='/delete_account']",
+    )
+    LOGGED_IN_USER = (
+        By.CSS_SELECTOR,
+        "li > a > b"
+    )
 
 class HeaderComponentClass(BasePageClass):
     """Page component containing application header navigation methods."""
@@ -139,4 +146,29 @@ class HeaderComponentClass(BasePageClass):
         else:
             logger.warning(
                 "Failed to verify logout navigation."
+            )
+
+    def get_logged_in_user_name(self):
+        logged_in = self.locate_element(
+            HeaderComponentLocator.LOGGED_IN_USER
+        )
+        return logged_in.text
+
+    def delete_account(self):
+        """
+        This method will delete the account of current user
+        Raises:
+            TimeoutException: If the delete account navigation element does not
+                become available or the expected URL is not reached.
+        """
+        logger.info("Clicking on Delete Account")
+        delete_account_element = self.locate_element(
+            HeaderComponentLocator.DELETE_ACCOUNT_NAV
+        )
+        self.click_element(delete_account_element)
+        if self.wait_for_url_contains("/delete_account"):
+            logger.info("Successfully deleted the user account.")
+        else:
+            logger.warning(
+                "Failed to delete user account."
             )
